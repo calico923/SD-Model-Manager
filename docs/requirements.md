@@ -138,41 +138,54 @@ SD-Model-Manager は、Stable Diffusion および ComfyUI のモデル管理を�
 ## 技術仕様（MVP）
 
 ### スタック
-- **言語**: Python 3.9+
+- **言語**: Python 3.12+
 - **Web フレームワーク**: FastAPI
-- **フロントエンド**: HTML + JavaScript（CDN ライブラリ活用、初期は Vanilla JS でも OK）
+- **フロントエンド**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - **データモデル**: Pydantic V2
-- **HTTP クライアント**: httpx または requests
+- **HTTP クライアント**: httpx
 - **設定管理**: python-dotenv
-- **ファイル管理**: JSON ファイル
+- **ファイル管理**: JSON ファイル（MVP）、SQLite（Phase 6+）
 
-### MVP プロジェクト構造
+### MVP プロジェクト構造（Codex推奨）
 ```
 SD-Model-Manager/
 ├── src/
-│   ├── main.py                  # FastAPI アプリケーションエントリ
-│   ├── config.py                # 設定管理
-│   ├── models.py                # Pydantic モデル定義
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── routes.py            # エンドポイント定義
-│   │   └── civitai_client.py    # Civitai API クライアント
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── downloader.py        # ダウンロード処理
-│   │   └── history_manager.py   # 履歴管理
-│   └── static/
-│       ├── index.html           # Web UI
-│       ├── styles.css
-│       └── script.js
+│   └── sd_model_manager/
+│       ├── __main__.py               # エントリポイント
+│       ├── config.py                 # 設定管理
+│       ├── logging.py                # ログ設定
+│       ├── lib/
+│       │   └── filesystem.py         # 共通ユーティリティ
+│       ├── registry/
+│       │   ├── scanners.py           # ローカルスキャン
+│       │   ├── repositories.py       # モデルリポジトリ
+│       │   └── models.py             # Pydantic モデル定義
+│       ├── download/
+│       │   ├── clients.py            # Civitai API クライアント
+│       │   ├── services.py           # ダウンロードサービス
+│       │   └── history.py            # 履歴管理
+│       ├── ui/
+│       │   ├── api/
+│       │   │   └── routes.py         # FastAPI エンドポイント
+│       │   ├── frontend/
+│       │   │   ├── src/              # React プロジェクト
+│       │   │   ├── vite.config.ts
+│       │   │   └── package.json
+│       │   └── templates/            # ビルド成果物
+│       └── infrastructure/
+│           ├── storage.py            # ストレージ抽象化
+│           ├── http.py               # HTTP クライアント
+│           └── scheduler.py          # 定期実行（Phase 4+）
 ├── data/
-│   └── download_history.json    # ダウンロード履歴
+│   └── download_history.json         # ダウンロード履歴
 ├── tests/
-│   ├── __init__.py
-│   ├── test_api.py
-│   └── test_downloader.py
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
 ├── docs/
-│   └── requirements.md
+│   ├── requirements.md
+│   ├── mvp_specification.md
+│   └── review.md
 ├── .env.example
 ├── requirements.txt
 ├── pyproject.toml
@@ -222,7 +235,7 @@ Response:
 ## MVP制約事項
 
 1. **Civitai API**: 無料API使用（レート制限あり）
-2. **ダウンロード対象**: LoRA形式のみ（MVP段階）
+2. **ダウンロード対象**: 全モデルタイプ（LoRA, Checkpoint, VAE, Embedding）対応
 3. **ローカルストレージ**: ユーザーが事前に保存先ディレクトリを確保
 4. **単一マシン**: 複数マシン同期は非対応
 
@@ -231,7 +244,7 @@ Response:
 実装完了時点で以下をクリア：
 
 1. ✅ FastAPI サーバーが起動し、Web UI にアクセス可能
-2. ✅ Civitai URL を入力して、LoRA をダウンロード可能
+2. ✅ Civitai URL を入力して、全モデルタイプをダウンロード可能
 3. ✅ ダウンロード履歴が JSON に記録される
 4. ✅ 履歴ページで過去のダウンロード情報を表示可能
 5. ✅ 基本的なエラーハンドリング（ネットワークエラー等）

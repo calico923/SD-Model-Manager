@@ -244,74 +244,95 @@ Settings ページで編集可能
 | | Vite | 5.x |
 | | Tailwind CSS | 3.x |
 | | shadcn/ui | Latest |
-| **バックエンド** | Python | 3.9+ |
+| **バックエンド** | Python | 3.12+ |
 | | FastAPI | 0.100+ |
 | | Pydantic | V2 |
 | | httpx | (async HTTP client) |
 | | python-dotenv | (環境変数) |
-| **ファイルシステム** | JSON | (history.json) |
-| | SQLite | (Optional, Phase 2) |
+| **ファイルシステム** | JSON | (MVP: history.json) |
+| | SQLite | (Phase 6+) |
 
-### 3.2 プロジェクト構造
+### 3.2 プロジェクト構造（Codex推奨）
 
 ```
 SD-Model-Manager/
 ├── src/
-│   ├── __init__.py
-│   ├── main.py                    # FastAPI エントリ
-│   ├── config.py                  # 設定管理
-│   ├── models.py                  # Pydantic models
-│   │
-│   ├── api/
-│   │   ├── __init__.py
-│   │   ├── routes.py              # エンドポイント定義
-│   │   └── civitai_client.py      # Civitai API クライアント
-│   │
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── downloader.py          # ダウンロード処理
-│   │   ├── scanner.py             # ローカルスキャン
-│   │   └── history_manager.py     # 履歴管理
-│   │
-│   └── static/                    # Frontend ビルド出力先
-│       └── dist/
-│
-├── frontend/                      # React プロジェクト
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── ModelsTab.tsx
-│   │   │   ├── DownloadTab.tsx
-│   │   │   ├── HistoryTab.tsx
-│   │   │   └── Settings.tsx
-│   │   ├── pages/
-│   │   ├── api/
-│   │   │   └── client.ts          # API クライアント
-│   │   ├── types/
-│   │   │   └── index.ts           # 型定義
-│   │   ├── styles/
-│   │   │   └── globals.css
-│   │   └── main.tsx
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── package.json
+│   └── sd_model_manager/
+│       ├── __main__.py               # エントリポイント
+│       ├── config.py                 # 設定管理
+│       ├── logging.py                # ログ設定
+│       │
+│       ├── lib/
+│       │   └── filesystem.py         # 共通ユーティリティ
+│       │
+│       ├── registry/
+│       │   ├── __init__.py
+│       │   ├── scanners.py           # ローカルスキャン
+│       │   ├── repositories.py       # モデルリポジトリ
+│       │   └── models.py             # Pydantic モデル定義
+│       │
+│       ├── download/
+│       │   ├── __init__.py
+│       │   ├── clients.py            # Civitai API クライアント
+│       │   ├── services.py           # ダウンロードサービス
+│       │   └── history.py            # 履歴管理
+│       │
+│       ├── ui/
+│       │   ├── api/
+│       │   │   ├── __init__.py
+│       │   │   └── routes.py         # FastAPI エンドポイント
+│       │   ├── frontend/             # React プロジェクト
+│       │   │   ├── src/
+│       │   │   │   ├── App.tsx
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── Sidebar.tsx
+│       │   │   │   │   ├── ModelsTab.tsx
+│       │   │   │   │   ├── DownloadTab.tsx
+│       │   │   │   │   ├── HistoryTab.tsx
+│       │   │   │   │   └── Settings.tsx
+│       │   │   │   ├── api/
+│       │   │   │   │   └── client.ts  # API クライアント
+│       │   │   │   ├── types/
+│       │   │   │   │   └── index.ts   # 型定義
+│       │   │   │   └── main.tsx
+│       │   │   ├── vite.config.ts
+│       │   │   ├── tailwind.config.js
+│       │   │   └── package.json
+│       │   └── templates/            # ビルド成果物
+│       │
+│       └── infrastructure/
+│           ├── __init__.py
+│           ├── storage.py            # ストレージ抽象化
+│           ├── http.py               # HTTP クライアント
+│           └── scheduler.py          # 定期実行（Phase 4+）
 │
 ├── data/
-│   └── download_history.json      # ダウンロード履歴
+│   └── download_history.json         # ダウンロード履歴
 │
 ├── tests/
-│   ├── test_api.py
-│   ├── test_downloader.py
-│   └── test_scanner.py
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
+│
+├── docs/
+│   ├── requirements.md
+│   ├── mvp_specification.md
+│   └── review.md
 │
 ├── .env.example
 ├── .gitignore
-├── requirements.txt               # Python 依存
+├── requirements.txt
 ├── pyproject.toml
 ├── README.md
 └── CLAUDE.md
 ```
+
+**構造の特徴（Codex推奨）**:
+- `src/sd_model_manager/` 配下に全ランタイムコードを配置
+- `lib/` に共通ユーティリティを集約（循環依存回避）
+- サービス層を共有し、UI/CLI/将来の自動同期から再利用可能
+- React プロジェクトは `ui/frontend/` に配置
+- ビルド成果物を `ui/templates/` 配下で FastAPI から配信
 
 ### 3.3 API エンドポイント
 
@@ -558,7 +579,7 @@ SD-Model-Manager/
 ### UI/UX 面
 - ✅ ComfyUI-Lora-Manager と同等の使いやすさ
 - ✅ 応答時間 <500ms
-- ✅ モバイル・タブレット（レスポンシブ）対応
+- ✅ デスクトップ環境で快適に動作（レスポンシブは Phase 6+）
 
 ### 品質面
 - ✅ テストカバレッジ >70%
