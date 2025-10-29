@@ -3,3 +3,37 @@ reference_git_clones/
 ComfyUI-Lora-Manager/
 paperspace-civitiai-downloader/
 civitiai-tools/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Environment
+.env
+
+# Data
+data/*.json
+downloads/
+
+# Frontend (追加予定)
+node_modules/
+dist/
+
+# IDE & Editor
+.DS_Store
+.cursorindexingignore
+.vscode/
+.idea/
+
+# Claude Code & Tools
+.claude/
+.specstory/
+AGENTS.md
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
