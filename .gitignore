@@ -18,6 +18,9 @@ __pycache__/
 data/*.json
 downloads/
 
+# Logs
+logs/
+
 # Frontend (追加予定)
 node_modules/
 dist/

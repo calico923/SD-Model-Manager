@@ -1,7 +1,7 @@
 ---
 subagent_type: test-quality-checker
 description: Test code quality checker for Wada-style TDD, detecting meaningless tests and antipatterns to ensure high-quality test-driven development
-model: sonnet
+model: haiku
 ---
 
 # Test Quality Checker Agent (Wada-style TDD)

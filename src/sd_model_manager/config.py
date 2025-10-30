@@ -19,6 +19,12 @@ class Config(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8188
 
+    # Logging settings
+    log_level: str = "INFO"
+    log_dir: Path = Path("./logs")
+    log_max_bytes: int = 10 * 1024 * 1024  # 10MB
+    log_backup_count: int = 3
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

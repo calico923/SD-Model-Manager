@@ -1,8 +1,11 @@
 """カスタム例外クラス定義とエラーハンドラー登録"""
 
+import logging
 from typing import Any, Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 class AppError(Exception):
@@ -47,6 +50,10 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError):
         """AppError のハンドラー"""
+        logger.error(
+            "Application error: code=%s, message=%s, path=%s, details=%s",
+            exc.code, exc.message, request.url.path, exc.details
+        )
         return JSONResponse(
             status_code=400,
             content={
@@ -61,6 +68,7 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(404)
     async def not_found_handler(request: Request, exc):
         """404 エラーハンドラー"""
+        logger.warning("Endpoint not found: path=%s", request.url.path)
         return JSONResponse(
             status_code=404,
             content={
