@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sd_model_manager.config import Config
 from sd_model_manager.ui.api.health import router as health_router
+from sd_model_manager.ui.api.download import router as download_router
+from sd_model_manager.ui.api.websocket import router as websocket_router
 from sd_model_manager.lib.errors import register_error_handlers
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,12 @@ def create_app(config: Config | None = None) -> FastAPI:
     # ルーター登録
     app.include_router(health_router)
     logger.info("Health router registered")
+
+    app.include_router(download_router)
+    logger.info("Download router registered")
+
+    app.include_router(websocket_router)
+    logger.info("WebSocket router registered")
 
     # エラーハンドラー登録
     register_error_handlers(app)
