@@ -1070,7 +1070,7 @@ Modal Layer:
 
 | Component | Library | Features | Requirement Coverage |
 |-----------|---------|----------|---------------------|
-| `ModelDetailModal` | Radix Dialog + Framer Motion | Focus trap, ESC handling, backdrop blur, smooth animations | Req. 5.7, 5.8 |
+| `ModelDetailModal` | Radix Dialog + Framer Motion | Focus trap, ESC handling, backdrop blur, smooth animations, metadata display | Req. 5.7 (modal), 2.3-2.5 (metadata), 3.1-3.2 (preview) |
 | Confirmation Dialogs | Radix AlertDialog | Path preview, accessible buttons, keyboard navigation | Req. 11.3 |
 | Type Filter (Optional) | Radix Select | Searchable dropdown for large tag sets (future enhancement) | Req. 6.5 |
 
@@ -1185,6 +1185,11 @@ interface ConfirmDialogState {
   onConfirm: () => void;
 }
 
+interface PaginationState {
+  currentPage: number;
+  totalPages: number;
+}
+
 interface ModelsPageState {
   models: ModelInfo[];
   filteredModels: ModelInfo[];
@@ -1195,6 +1200,7 @@ interface ModelsPageState {
   bulkMoveProgress: BulkMoveProgress | null;  // Bulk move progress (Requirement 13.5, 13.6)
   selectedModelId: string | null;  // Model ID for detail modal (Requirement 5.7)
   confirmDialog: ConfirmDialogState | null;  // Radix AlertDialog state (Requirement 11.3)
+  pagination: PaginationState;  // Pagination for >100 models (Requirement 9.4)
   error: string | null;
   selectedIds: Set<string>;
 }
@@ -1210,6 +1216,7 @@ export const ModelsPage: React.FC = () => {
     bulkMoveProgress: null,
     selectedModelId: null,
     confirmDialog: null,
+    pagination: { currentPage: 1, totalPages: 1 },
     error: null,
     selectedIds: new Set()
   });
@@ -1231,15 +1238,29 @@ export const ModelsPage: React.FC = () => {
     };
   }, []);
 
+  // Paginated models (Requirement 9.4)
+  const paginatedModels = useMemo(() => {
+    const ITEMS_PER_PAGE = 50;
+    const startIndex = (state.pagination.currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return state.filteredModels.slice(startIndex, endIndex);
+  }, [state.filteredModels, state.pagination.currentPage]);
+
   // Fetch models on mount
   useEffect(() => {
     fetchModels();
   }, []);
 
-  // Apply filters when search/type changes
+  // Apply filters when search/type changes (Requirement 9.4: update pagination)
   useEffect(() => {
     const filtered = applyFilters(state.models, state.searchQuery, state.selectedType);
-    setState(prev => ({ ...prev, filteredModels: filtered }));
+    const ITEMS_PER_PAGE = 50;
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    setState(prev => ({
+      ...prev,
+      filteredModels: filtered,
+      pagination: { currentPage: 1, totalPages }  // Reset to page 1 when filters change
+    }));
   }, [state.models, state.searchQuery, state.selectedType, applyFilters]);
 
   const fetchModels = async () => {
@@ -1574,12 +1595,46 @@ export const ModelsPage: React.FC = () => {
         />
       )}
       <ModelGrid
-        models={state.filteredModels}
+        models={paginatedModels}
         selectedIds={state.selectedIds}
         onSelect={(id) => toggleSelection(id)}
         onShowDetail={(id) => handleShowDetail(id)}
         onMove={handleMove}
       />
+
+      {/* Pagination controls (Requirement 9.4: shown when >100 models) */}
+      {state.filteredModels.length > 100 && (
+        <div className="flex justify-center items-center gap-4 mt-6 pb-8">
+          <button
+            onClick={() => setState(prev => ({
+              ...prev,
+              pagination: { ...prev.pagination, currentPage: prev.pagination.currentPage - 1 }
+            }))}
+            disabled={state.pagination.currentPage === 1}
+            className="px-4 py-2 rounded bg-blue-600 text-white disabled:bg-gray-300
+                       disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            Page {state.pagination.currentPage} of {state.pagination.totalPages}
+            <span className="ml-2 text-gray-500">
+              ({state.filteredModels.length} models)
+            </span>
+          </span>
+          <button
+            onClick={() => setState(prev => ({
+              ...prev,
+              pagination: { ...prev.pagination, currentPage: prev.pagination.currentPage + 1 }
+            }))}
+            disabled={state.pagination.currentPage === state.pagination.totalPages}
+            className="px-4 py-2 rounded bg-blue-600 text-white disabled:bg-gray-300
+                       disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -2242,7 +2297,7 @@ class InvalidPathError(ModelMoveError):
 
 ### Backend Testing
 
-**Test Coverage Target**: >80% for registry module
+**Test Coverage Target**: ≥85% for registry module (aligned with repository guidelines)
 
 **Test Structure**:
 ```
@@ -2472,22 +2527,53 @@ async def _scan_files(self) -> AsyncIterator[Path]:
 - Searches both filename and Civitai metadata name fields
 - <100ms response time for filtering operations
 
-2. **Virtual Scrolling** (Future):
+2. **Pagination** (Required for Req 9.4):
 ```typescript
-// For >100 models, use react-window
-import { FixedSizeGrid } from "react-window";
+// Implement pagination for >100 models
+const ITEMS_PER_PAGE = 50;
 
-<FixedSizeGrid
-  columnCount={4}
-  rowCount={Math.ceil(models.length / 4)}
-  columnWidth={300}
-  rowHeight={400}
-  height={800}
-  width={1200}
->
-  {ModelCardRenderer}
-</FixedSizeGrid>
+interface PaginationState {
+  currentPage: number;
+  totalPages: number;
+}
+
+const [pagination, setPagination] = useState<PaginationState>({
+  currentPage: 1,
+  totalPages: Math.ceil(filteredModels.length / ITEMS_PER_PAGE)
+});
+
+// Paginated models
+const paginatedModels = useMemo(() => {
+  const startIndex = (pagination.currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  return filteredModels.slice(startIndex, endIndex);
+}, [filteredModels, pagination.currentPage]);
+
+// Pagination controls (shown when >100 models)
+{filteredModels.length > 100 && (
+  <div className="flex justify-center items-center gap-4 mt-6">
+    <button
+      onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+      disabled={pagination.currentPage === 1}
+    >
+      Previous
+    </button>
+    <span>Page {pagination.currentPage} of {pagination.totalPages}</span>
+    <button
+      onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+      disabled={pagination.currentPage === pagination.totalPages}
+    >
+      Next
+    </button>
+  </div>
+)}
 ```
+
+**Rationale**: Requirement 9.4 mandates pagination/virtual scrolling for >100 models. Simple pagination is chosen over virtual scrolling for:
+- Simpler implementation and maintenance
+- Better user control (explicit page navigation)
+- Easier state management with filtering/search
+- Adequate performance for up to 1000 models
 
 3. **Image Lazy Loading**:
 ```typescript
@@ -2500,10 +2586,10 @@ import { FixedSizeGrid } from "react-window";
 
 ### Scalability Considerations
 
-**Phase 1 (Current Design)**: <1000 models
+**Phase 1 (Current Design)**: Up to 1000 models
 - In-memory caching sufficient
 - Client-side filtering performant
-- No virtual scrolling needed
+- Pagination for >100 models (Req 9.4)
 
 **Phase 2 (Database Migration)**: 1000-5000 models
 - SQLite persistence with indexed queries
@@ -2737,7 +2823,7 @@ sd_model_manager:
 - ✅ Search filter <100ms
 
 ### Quality Targets
-- ✅ >80% backend test coverage
+- ✅ ≥85% backend test coverage (aligned with repository guidelines)
 - ✅ Zero critical bugs in filesystem operations
 - ✅ Graceful degradation for missing metadata
 - ✅ All error states properly handled
