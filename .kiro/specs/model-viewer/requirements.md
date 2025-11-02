@@ -184,11 +184,13 @@ models/
 ├── active/           # ComfyUI loads from this directory
 │   ├── loras/
 │   ├── checkpoints/
-│   └── vae/
+│   ├── vae/
+│   └── embeddings/
 └── archive/          # ComfyUI does not load from this directory
     ├── loras/
     ├── checkpoints/
-    └── vae/
+    ├── vae/
+    └── embeddings/
 ```
 
 ### Requirement 12: File Movement API
@@ -352,7 +354,7 @@ Note:
 
 ### Maintainability
 - Clear separation between scanning logic, data storage, and API layers
-- Comprehensive test coverage (>80% for backend)
+- Comprehensive test coverage (≥85% for backend, aligned with repository guidelines)
 - Type safety with Pydantic models and TypeScript interfaces
 - Consistent error handling patterns
 
