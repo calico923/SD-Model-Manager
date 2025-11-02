@@ -1860,6 +1860,544 @@ test('Civitai からモデルをダウンロード', async ({ page }) => {
 
 ---
 
+## Phase 2.11: セキュリティ修正（パストラバーサル脆弱性） ✅
+
+**種別**: TDD (RED → GREEN)
+**状態**: ✅ 完了
+
+### 問題
+
+Codex レビューで検出された P0（最優先）セキュリティ脆弱性：
+- ファイル名をサニタイズせずに直接使用
+- パストラバーサル攻撃（`../../etc/passwd`）が可能
+- 任意のファイルシステム位置への書き込みが可能
+
+### 🔴 RED: セキュリティテスト作成
+
+```python
+# tests/sd_model_manager/ui/api/test_download_endpoint.py
+
+def test_download_endpoint_rejects_path_traversal_dotdot(test_client):
+    """パストラバーサル攻撃（..）を拒否するテスト"""
+    response = test_client.post(
+        "/api/download",
+        json={
+            "url": "https://civitai.com/models/123456",
+            "filename": "../../etc/passwd"
+        }
+    )
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+def test_download_endpoint_rejects_absolute_path(test_client):
+    """絶対パスを拒否するテスト"""
+    response = test_client.post(
+        "/api/download",
+        json={
+            "url": "https://civitai.com/models/123456",
+            "filename": "/etc/passwd"
+        }
+    )
+    assert response.status_code == 400
+
+def test_download_endpoint_rejects_directory_separator(test_client):
+    """ディレクトリセパレータを拒否するテスト"""
+    response = test_client.post(
+        "/api/download",
+        json={
+            "url": "https://civitai.com/models/123456",
+            "filename": "path/to/file.safetensors"
+        }
+    )
+    assert response.status_code == 400
+
+def test_download_endpoint_accepts_safe_filename(test_client):
+    """安全なファイル名を受け入れるテスト"""
+    response = test_client.post(
+        "/api/download",
+        json={
+            "url": "https://civitai.com/models/123456",
+            "filename": "my-model_v2.safetensors"
+        }
+    )
+    assert response.status_code in [200, 202]
+```
+
+### 🟢 GREEN: セキュリティ実装
+
+```python
+# src/sd_model_manager/ui/api/download.py
+
+from fastapi import HTTPException
+
+def sanitize_filename(filename: str) -> str:
+    """
+    ファイル名をサニタイズして、パストラバーサル攻撃を防ぐ。
+
+    Raises:
+        HTTPException: 不正なファイル名の場合（status_code=400）
+    """
+    # 空文字チェック
+    if not filename or not filename.strip():
+        raise HTTPException(status_code=400, detail="Filename cannot be empty")
+
+    filename = filename.strip()
+
+    # ディレクトリセパレータをチェック
+    if '/' in filename or '\\' in filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Filename cannot contain path separators (/ or \\)"
+        )
+
+    # 相対パス（..）をチェック
+    if '..' in filename:
+        raise HTTPException(status_code=400, detail="Filename cannot contain '..'")
+
+    # 絶対パスをチェック
+    if filename.startswith('/'):
+        raise HTTPException(status_code=400, detail="Filename cannot be an absolute path")
+
+    # Windowsドライブレター（C:, D:など）をチェック
+    if len(filename) > 1 and filename[1] == ':':
+        raise HTTPException(status_code=400, detail="Filename cannot contain drive letters")
+
+    # NULL文字をチェック
+    if '\0' in filename:
+        raise HTTPException(status_code=400, detail="Filename cannot contain null characters")
+
+    return filename
+
+@router.post("", response_model=DownloadResponse)
+async def start_download(request: DownloadRequest, background_tasks: BackgroundTasks):
+    """ダウンロードを開始"""
+    # ファイル名をサニタイズ（パストラバーサル攻撃を防ぐ）
+    safe_filename = sanitize_filename(request.filename)
+
+    # 以降、safe_filename のみを使用
+    ...
+```
+
+### 完了条件
+
+- ✅ 6個のセキュリティテストが全て合格
+- ✅ 既存テスト（38個）にリグレッションなし
+- ✅ 総テスト数: 44/44 passing
+
+---
+
+## Phase 2.12: ファイル名自動決定機能（ComfyUI-LoRA-Manager 方式） ⏳
+
+**種別**: TDD (RED → GREEN → REFACTOR)
+**状態**: ⏳ 未実装
+
+### 背景
+
+**ComfyUI-LoRA-Manager の実装分析結果**:
+- ✅ ユーザーはファイル名を入力しない
+- ✅ Civitai API のメタデータから自動的にファイル名を取得
+- ✅ 重複時はハッシュベースでユニーク化
+- ✅ UX改善: 入力項目が減る（2つ→1つ）
+
+### 実装内容
+
+**現在の設計**:
+```json
+POST /api/download
+{
+  "url": "https://civitai.com/models/12345",
+  "filename": "model.safetensors"  // ← ユーザー手動入力
+}
+```
+
+**新設計（Phase 2.12）**:
+```json
+POST /api/download
+{
+  "url": "https://civitai.com/models/12345"  // URLのみ！
+}
+```
+
+**処理フロー**:
+```
+1. URL受信
+   ↓
+2. Civitai API からメタデータ取得
+   ↓
+3. file_info['name'] でファイル名を抽出
+   ↓
+4. sanitize_filename() でセキュリティチェック
+   ↓
+5. 重複時はタイムスタンプ等で対応
+   ↓
+6. ダウンロード実行
+```
+
+### 🔴 RED: テスト作成（失敗させる）
+
+```python
+# tests/sd_model_manager/ui/api/test_download_endpoint.py
+
+import pytest
+from unittest.mock import AsyncMock, patch
+
+def test_download_endpoint_accepts_url_only(test_client):
+    """filename なしのリクエストを受け付けるテスト"""
+    response = test_client.post(
+        "/api/download",
+        json={"url": "https://civitai.com/models/134605/yaemiko-lora"}
+    )
+    # filename が必須でなくなったので 200/202 を期待
+    assert response.status_code in [200, 202]
+    data = response.json()
+    assert "task_id" in data
+
+
+@pytest.mark.asyncio
+async def test_extract_filename_from_metadata(test_client):
+    """メタデータからファイル名を抽出するテスト"""
+    # モックのメタデータ
+    mock_metadata = {
+        "modelVersions": [{
+            "files": [{
+                "name": "yaemiko-lora-nochekaiser.safetensors",
+                "type": "Model"
+            }]
+        }]
+    }
+
+    with patch('sd_model_manager.download.civitai_client.CivitaiClient.get_model_metadata') as mock_get:
+        mock_get.return_value = mock_metadata
+
+        response = test_client.post(
+            "/api/download",
+            json={"url": "https://civitai.com/models/134605"}
+        )
+
+        assert response.status_code in [200, 202]
+        # 実際のダウンロードでファイル名が使われることを確認
+        # （ログまたはプログレスマネージャーで検証）
+
+
+def test_filename_sanitization_on_metadata(test_client):
+    """メタデータのファイル名もサニタイズされることを確認"""
+    # 悪意あるメタデータを想定
+    with patch('sd_model_manager.download.civitai_client.CivitaiClient.get_model_metadata') as mock_get:
+        mock_get.return_value = {
+            "modelVersions": [{
+                "files": [{
+                    "name": "../../etc/passwd",  # 悪意あるファイル名
+                    "type": "Model"
+                }]
+            }]
+        }
+
+        response = test_client.post(
+            "/api/download",
+            json={"url": "https://civitai.com/models/134605"}
+        )
+
+        # セキュリティエラーを期待
+        assert response.status_code == 400
+        assert "path" in response.json()["detail"].lower()
+```
+
+### 🟢 GREEN: 実装
+
+**1. DownloadRequest モデルを更新**
+
+```python
+# src/sd_model_manager/ui/api/download.py
+
+class DownloadRequest(BaseModel):
+    """ダウンロードリクエスト"""
+    url: HttpUrl  # filename フィールドを削除！
+```
+
+**2. ファイル名抽出ロジックを追加**
+
+```python
+# src/sd_model_manager/ui/api/download.py
+
+async def extract_filename_from_metadata(url: str, civitai_client: CivitaiClient) -> str:
+    """
+    Civitai API のメタデータからファイル名を抽出
+
+    Args:
+        url: Civitai URL
+        civitai_client: CivitaiClient インスタンス
+
+    Returns:
+        抽出されたファイル名
+
+    Raises:
+        HTTPException: メタデータ取得失敗時
+    """
+    try:
+        metadata = await civitai_client.get_model_metadata(url)
+
+        # modelVersions[0].files[0].name を取得
+        if not metadata.get("modelVersions"):
+            raise HTTPException(
+                status_code=400,
+                detail="No model versions found in metadata"
+            )
+
+        files = metadata["modelVersions"][0].get("files", [])
+        if not files:
+            raise HTTPException(
+                status_code=400,
+                detail="No files found in model version"
+            )
+
+        # 最初のファイル名を取得
+        filename = files[0].get("name")
+        if not filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Filename not found in metadata"
+            )
+
+        return filename
+
+    except Exception as e:
+        logger.error("Failed to extract filename from metadata: %s", str(e))
+        # フォールバック: モデルIDベースのファイル名
+        model_id = civitai_client.extract_model_id(url)
+        return f"model-{model_id}.safetensors"
+```
+
+**3. start_download を更新**
+
+```python
+@router.post("", response_model=DownloadResponse)
+async def start_download(
+    request: DownloadRequest,
+    background_tasks: BackgroundTasks
+):
+    """ダウンロードを開始"""
+
+    # Civitai クライアントを初期化
+    config = Config()
+    civitai_client = CivitaiClient(api_key=config.civitai_api_key)
+
+    # メタデータからファイル名を自動取得
+    filename = await extract_filename_from_metadata(str(request.url), civitai_client)
+
+    # ファイル名をサニタイズ（パストラバーサル攻撃を防ぐ）
+    safe_filename = sanitize_filename(filename)
+
+    # バックグラウンドタスクでダウンロード実行
+    task_id = str(uuid.uuid4())
+    progress_manager = get_progress_manager()
+
+    progress_manager.create_task(
+        task_id=task_id,
+        filename=safe_filename,
+        total_bytes=0
+    )
+
+    background_tasks.add_task(
+        execute_download,
+        task_id=task_id,
+        url=str(request.url),
+        filename=safe_filename
+    )
+
+    logger.info("Download task created: task_id=%s, url=%s, filename=%s (auto-detected)",
+                task_id, request.url, safe_filename)
+
+    return DownloadResponse(
+        task_id=task_id,
+        status="started"
+    )
+```
+
+**4. フロントエンド更新**
+
+```tsx
+// src/sd_model_manager/ui/frontend/src/components/download/DownloadForm.tsx
+
+export default function DownloadForm({ onSubmit, disabled = false }: DownloadFormProps) {
+  const [url, setUrl] = useState('')
+  // filename state を削除！
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!url.trim()) {
+      setError('URL is required')
+      return
+    }
+
+    // URL バリデーション
+    try {
+      new URL(url)
+    } catch {
+      setError('Invalid URL format')
+      return
+    }
+
+    // filename を渡さない！
+    onSubmit(url)
+    setUrl('')
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded shadow">
+      <div>
+        <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+          Civitai Model URL
+        </label>
+        <input
+          type="text"
+          id="url"
+          name="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          disabled={disabled}
+          placeholder="https://civitai.com/models/12345/model-name"
+          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        />
+      </div>
+
+      {/* filename 入力欄を削除！ */}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={disabled}
+        className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+      >
+        {disabled ? 'Downloading...' : 'Start Download'}
+      </button>
+    </form>
+  )
+}
+```
+
+```typescript
+// src/sd_model_manager/ui/frontend/src/hooks/useDownload.ts
+
+const startDownload = async (url: string) => {  // filename パラメータ削除！
+  setIsDownloading(true)
+  setProgress(0)
+  setStatus('downloading')
+  setError(null)
+
+  try {
+    const response = await fetch('http://localhost:8000/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })  // filename を送信しない！
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const { task_id } = await response.json()
+    setTaskId(task_id)
+    console.log('Download started with task_id:', task_id)
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to start download')
+    setStatus('failed')
+    setIsDownloading(false)
+  }
+}
+```
+
+### 🔵 REFACTOR: エラーハンドリング改善
+
+```python
+# src/sd_model_manager/ui/api/download.py
+
+async def extract_filename_from_metadata(
+    url: str,
+    civitai_client: CivitaiClient,
+    fallback_to_model_id: bool = True
+) -> str:
+    """
+    Civitai API のメタデータからファイル名を抽出
+
+    Args:
+        url: Civitai URL
+        civitai_client: CivitaiClient インスタンス
+        fallback_to_model_id: メタデータ取得失敗時にモデルIDベースのファイル名を使用するか
+
+    Returns:
+        抽出されたファイル名
+    """
+    try:
+        metadata = await civitai_client.get_model_metadata(url)
+
+        # 最新バージョンのファイルを取得
+        versions = metadata.get("modelVersions", [])
+        if not versions:
+            if fallback_to_model_id:
+                return _generate_fallback_filename(url, civitai_client)
+            raise HTTPException(status_code=400, detail="No model versions found")
+
+        # 最新バージョンの最初のファイルを取得
+        files = versions[0].get("files", [])
+        if not files:
+            if fallback_to_model_id:
+                return _generate_fallback_filename(url, civitai_client)
+            raise HTTPException(status_code=400, detail="No files found in model version")
+
+        # Type="Model" のファイルを優先
+        model_file = next((f for f in files if f.get("type") == "Model"), files[0])
+        filename = model_file.get("name")
+
+        if not filename:
+            if fallback_to_model_id:
+                return _generate_fallback_filename(url, civitai_client)
+            raise HTTPException(status_code=400, detail="Filename not found in metadata")
+
+        logger.info("Extracted filename from metadata: %s", filename)
+        return filename
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to extract filename from metadata: %s", str(e))
+        if fallback_to_model_id:
+            return _generate_fallback_filename(url, civitai_client)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to extract filename: {str(e)}"
+        )
+
+
+def _generate_fallback_filename(url: str, civitai_client: CivitaiClient) -> str:
+    """フォールバック用のファイル名を生成"""
+    model_id = civitai_client.extract_model_id(url)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"model-{model_id}-{timestamp}.safetensors"
+    logger.warning("Using fallback filename: %s", filename)
+    return filename
+```
+
+### 完了条件
+
+- ✅ DownloadRequest から filename フィールドを削除
+- ✅ メタデータからファイル名を自動抽出
+- ✅ sanitize_filename() は引き続き適用
+- ✅ フォールバック機能（メタデータ取得失敗時）
+- ✅ フロントエンドから filename 入力欄を削除
+- ✅ 既存テストの更新（filename なし）
+- ✅ 新規テスト: メタデータ抽出、セキュリティ検証
+- ✅ すべてのテストが合格
+
+---
+
 ---
 
 # TDD 駆動開発計画（Phase 3: 履歴管理 & 仕上げ）

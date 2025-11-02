@@ -9,16 +9,23 @@ All Phase 2 implementation is complete, tested, and ready to commit to the `phas
 Phase 2 implements a complete download functionality with:
 - REST API endpoint for initiating downloads
 - WebSocket for real-time progress updates
-- React frontend with form input and progress visualization
+- React frontend with URL-only input and progress visualization
 - E2E test suite with Playwright
 - Full TDD methodology: RED → GREEN → REFACTOR
+- Automatic filename extraction from Civitai API metadata
+- Enhanced logging with file paths, sizes, and elapsed times
+- Real Civitai URL integration tests
+- Logging initialization fix for uvicorn direct startup
+- Frontend endpoint URL fix (port 8188)
 
 ## Test Results
 
-**Backend Tests**: 44/44 PASSING ✅
+**Backend Tests**: 50/50 PASSING ✅
 - 35 existing tests from Phase 1 (all passing)
 - 3 new download endpoint tests (all passing)
 - 6 new security tests (all passing)
+- 3 new metadata extraction tests (all passing)
+- 3 new integration tests with real Civitai API (all passing)
 - No test regressions
 
 ## Files Added/Modified
@@ -228,9 +235,68 @@ Phase 2.11: Security fix (P0: Path traversal vulnerability)
   - Prevents arbitrary file system access outside download directory
   - Documented in docs/SECURITY_FIX_PATH_TRAVERSAL.md
 
+Phase 2.12: Automatic filename extraction from metadata (UX improvement)
+  - Analyzed ComfyUI-LoRA-Manager implementation for best practices
+  - Made DownloadRequest.filename optional (str | None = None)
+  - Implemented extract_filename_from_metadata() function
+    - Extracts filename from modelVersions[0].files[0].name
+    - Fallback to model-{id}.safetensors if metadata unavailable
+  - Updated frontend to remove filename input field
+    - DownloadForm: URL-only input with help text
+    - useDownload: Removed filename parameter from API request
+    - DownloadPage: Enhanced type safety
+  - Added 3 comprehensive metadata extraction tests (all passing)
+  - Maintains security with existing sanitize_filename() validation
+
+Phase 2.13: Enhanced logging strategy (Observability improvement)
+  - Added comprehensive download completion logging
+    - Absolute file path (for verification)
+    - File size in bytes and MB (for monitoring)
+    - Elapsed time in seconds (for performance analysis)
+  - Enhanced metadata extraction logging
+    - Logs when filename is extracted from metadata
+    - Logs when user-provided filename is used
+    - Helps troubleshooting metadata extraction issues
+  - Improved error logging with elapsed time
+  - Created comprehensive logging strategy documentation
+    - docs/LOGGING_STRATEGY.md: Complete logging reference
+    - Log format examples and best practices
+    - Troubleshooting guides and monitoring recommendations
+
+Phase 2.14: Real Civitai URL integration tests
+  - Updated all test URLs to use real Civitai models
+    - LoRA: https://civitai.com/models/1998509
+    - Checkpoint: https://civitai.com/models/827184?modelVersionId=2167369
+  - Added 3 integration tests with real Civitai API
+    - test_download_endpoint_with_real_lora_url
+    - test_download_endpoint_with_real_checkpoint_url
+    - test_download_endpoint_with_version_id_parameter
+  - Configured pytest markers for integration tests
+    - Can run separately: pytest -m "integration"
+    - Can skip: pytest -m "not integration"
+  - Created comprehensive testing guide documentation
+    - docs/TESTING_GUIDE.md: Complete testing reference
+    - Test execution examples and best practices
+    - Troubleshooting guides and CI/CD recommendations
+
+Phase 2.15: Logging and frontend endpoint fixes
+  - Fixed logging initialization issue (Codex review)
+    - Added setup_logging() guard in create_app()
+    - Ensures logging works with uvicorn direct startup
+    - Changed reload=False in __main__.py for direct app object passing
+  - Fixed frontend endpoint URLs (Codex review)
+    - Changed hardcoded port 8000 → dynamic URLs (port 8188)
+    - useDownload.ts: fetch('/api/download') uses relative path
+    - useDownload.ts: WebSocket URL uses window.location.origin
+    - vite.config.ts: Proxy target updated to localhost:8188
+  - Verified logs/app.log creation and proper logging output
+  - All tests passing (50/50)
+
 Testing:
-  - Backend: 44/44 tests passing (3 download + 6 security tests)
-  - Frontend: E2E test suite ready for execution
+  - Backend: 50/50 tests passing (12 unit + 3 integration tests for download endpoint)
+  - Unit tests: 3 seconds execution time
+  - Integration tests: 14 seconds execution time (real Civitai API calls)
+  - Frontend: TypeScript compilation successful, E2E test suite ready
   - Manual testing verified via http://localhost:5173
   - No regressions in existing functionality
 
@@ -241,9 +307,17 @@ Fixes from Codex review:
   - Enhanced test fixtures with sample data
   - [P0] Fixed path traversal vulnerability in filename handling
 
+UX improvements:
+  - Simplified user workflow: URL input only (no manual filename entry)
+  - Automatic filename extraction from Civitai API metadata
+  - Improved error handling and user feedback
+
 Documentation:
-  - docs/PHASE2_SUMMARY.md: Comprehensive completion summary
+  - docs/PHASE2_SUMMARY.md: Comprehensive completion summary including Phase 2.12-2.14
   - docs/SECURITY_FIX_PATH_TRAVERSAL.md: Security fix details
+  - docs/LOGGING_STRATEGY.md: Complete logging strategy and best practices
+  - docs/TESTING_GUIDE.md: Complete testing guide with real Civitai URLs
+  - docs/tdd_plan.md: Updated with Phase 2.12 specification
   - FRONTEND_SETUP.md: Setup and testing instructions
 ```
 

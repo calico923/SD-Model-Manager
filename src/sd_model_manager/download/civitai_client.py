@@ -55,7 +55,10 @@ class CivitaiClient:
     async def _get_client(self) -> httpx.AsyncClient:
         """HTTP クライアントの取得（遅延初期化）"""
         if self._client is None:
-            headers = {}
+            # Phase 2.16: User-Agentヘッダーを追加
+            headers = {
+                "User-Agent": "SD-Model-Manager/1.0"
+            }
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
@@ -171,13 +174,31 @@ class CivitaiClient:
             )
 
         version = versions[version_index]
-        if "downloadUrl" not in version:
+
+        # filesフィールドからダウンロードURLを取得（Phase 2.16: 参考実装に合わせて修正）
+        files = version.get("files", [])
+        if not files:
             raise DownloadError(
-                "Download URL not found in model version",
+                "No files found in model version",
                 details={"model_id": url_or_id, "version_index": version_index}
             )
 
-        return version["downloadUrl"]
+        # primary=True かつ type='Model' のファイルを優先的に選択
+        primary_file = next((f for f in files
+                            if f.get("primary") and f.get("type") == "Model"), None)
+
+        # primaryファイルがない場合は最初のファイルを使用
+        if not primary_file:
+            primary_file = files[0]
+
+        download_url = primary_file.get("downloadUrl")
+        if not download_url:
+            raise DownloadError(
+                "Download URL not found in file metadata",
+                details={"model_id": url_or_id, "version_index": version_index, "file": primary_file}
+            )
+
+        return download_url
 
     async def close(self):
         """HTTP クライアントをクローズ"""

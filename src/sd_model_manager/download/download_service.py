@@ -133,7 +133,7 @@ class DownloadService:
         Raises:
             Exception: ダウンロード失敗時
         """
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             async with client.stream("GET", url) as response:
                 response.raise_for_status()
 

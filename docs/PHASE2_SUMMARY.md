@@ -182,13 +182,99 @@ Codexレビューで検出されたP0（最優先）セキュリティ脆弱性�
 ### 詳細
 詳細なセキュリティ分析は `docs/SECURITY_FIX_PATH_TRAVERSAL.md` を参照
 
+## Phase 2.12: メタデータからのファイル名自動抽出（URL入力のみ）
+
+### 背景
+ComfyUI-LoRA-Managerの実装を分析し、ユーザビリティ向上のため設計変更を実施。
+ユーザーにファイル名入力を求めず、Civitai APIメタデータから自動抽出する方式に変更。
+
+### 実装内容
+
+#### バックエンド（3ファイル）
+- **src/sd_model_manager/ui/api/download.py**
+  - `DownloadRequest.filename`をオプショナルに変更（`str | None = None`）
+  - `extract_filename_from_metadata()`関数追加
+    - `modelVersions[0].files[0].name`からファイル名抽出
+    - フォールバック：`model-{id}.safetensors`
+  - `start_download()`エンドポイント更新
+    - `filename`未指定時、メタデータから自動抽出
+    - 既存の`sanitize_filename()`でセキュリティ検証
+
+- **tests/sd_model_manager/ui/api/test_download_endpoint.py**
+  - 3つの新規テスト追加：
+    - `test_download_endpoint_accepts_url_only_request`
+    - `test_download_endpoint_extracts_filename_from_metadata`
+    - `test_download_endpoint_handles_metadata_extraction_failure`
+
+#### フロントエンド（3ファイル）
+- **src/components/download/DownloadForm.tsx**
+  - `filename`入力フィールド削除
+  - `onSubmit`シグネチャ変更：`(url: string, filename: string)` → `(url: string)`
+  - ヘルプテキスト追加：「Filename will be automatically extracted from model metadata」
+
+- **src/hooks/useDownload.ts**
+  - `startDownload()`シグネチャ変更：`filename`パラメータ削除
+  - リクエストボディから`filename`削除
+  - WebSocketレスポンスから`filename`を設定
+
+- **src/pages/DownloadPage.tsx**
+  - 型安全性向上：`status !== 'idle'`チェック追加
+
+### TDD方法論
+- **RED**: 3つのテストが失敗（HTTP 422: filename必須）
+- **GREEN**: 最小限の実装でテスト合格
+- **REFACTOR**: 型安全性の向上（TypeScriptエラー解消）
+
+### テスト結果
+✅ 47/47 tests passing
+- 既存テスト: 44個（リグレッションなし）
+- 新規Phase 2.12テスト: 3個（すべて合格）
+- TypeScriptコンパイル: エラーなし
+
+## Phase 2.13: ログ戦略の強化
+
+### 実装内容
+- **ダウンロード完了ログの詳細化**
+  - 保存先の絶対パス記録
+  - ファイルサイズ（バイトとMB）
+  - ダウンロード所要時間（秒）
+- **メタデータ抽出ログの追加**
+  - メタデータ抽出開始/成功のログ
+  - ユーザー指定ファイル名使用のログ
+- **エラーログの改善**
+  - 失敗時の所要時間追加
+  - 詳細なコンテキスト情報
+
+### ドキュメント
+- `docs/LOGGING_STRATEGY.md`: 包括的なログ戦略ガイド
+
+## Phase 2.14: 実際のCivitai URLでの統合テスト
+
+### 実装内容
+- **テストURLの更新**
+  - 実際のLoRA URL: `https://civitai.com/models/1998509`
+  - 実際のCheckpoint URL: `https://civitai.com/models/827184?modelVersionId=2167369`
+  - すべてのユニットテストで実際のURL形式を使用
+- **統合テストの追加（3件）**
+  - 実際のLoRA URLでメタデータ抽出テスト
+  - 実際のCheckpoint URLでメタデータ抽出テスト
+  - `modelVersionId`パラメータ付きURLのテスト
+- **pytestマーカーの設定**
+  - `@pytest.mark.integration`で統合テストを識別
+  - ユニットテストと統合テストを分離実行可能
+
+### ドキュメント
+- `docs/TESTING_GUIDE.md`: 包括的なテストガイド
+
 ## Verification
 
 ### Backend Tests
-✅ 44/44 tests passing
+✅ 50/50 tests passing
 - Phase 1: 35 tests (all passing)
 - Phase 2.6-2.7: 3 new download tests (all passing)
 - Phase 2.11: 6 new security tests (all passing)
+- Phase 2.12: 3 new metadata extraction tests (all passing)
+- Phase 2.14: 3 new integration tests with real Civitai API (all passing)
 
 ### Frontend Structure
 ✅ All components created and properly connected
@@ -217,5 +303,5 @@ Phase 3 will add:
 
 **Completion Date**: 2025-10-30
 **Branch**: phase2/download-implementation
-**Test Coverage**: 38/38 backend tests passing
+**Test Coverage**: 50/50 backend tests passing (12 unit + 3 integration for download endpoint)
 **Status**: Ready for manual testing and Phase 3 implementation

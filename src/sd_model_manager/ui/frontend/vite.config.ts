@@ -8,11 +8,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8188',  // Phase 2.15: 正しいバックエンドポートに修正
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://localhost:8188',  // Phase 2.15: 正しいバックエンドポートに修正
         ws: true,
       },
     },

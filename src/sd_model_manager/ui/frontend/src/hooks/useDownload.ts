@@ -18,22 +18,23 @@ export const useDownload = () => {
   const [taskId, setTaskId] = useState<string | null>(null)
   const [filename, setFilename] = useState<string>('')
   const [status, setStatus] = useState<'idle' | 'downloading' | 'completed' | 'failed'>('idle')
-  const [error, setError] = useState<string | null>(null)
-  const [ws, setWs] = useState<WebSocket | null>(null)
+  const [error, setError] = useState<string | undefined>(undefined)  // Phase 2.12: null → undefined
+  const [_ws, setWs] = useState<WebSocket | null>(null)  // Phase 2.12: ws → _ws (未使用)
 
-  const startDownload = async (url: string, fname: string) => {
+  const startDownload = async (url: string) => {  // Phase 2.12: filename削除
     setIsDownloading(true)
     setProgress(0)
     setStatus('downloading')
-    setError(null)
-    setFilename(fname)
+    setError(undefined)
+    setFilename('')  // WebSocketレスポンスから設定される
 
     try {
-      // POST /api/download
-      const response = await fetch('http://localhost:8000/api/download', {
+      // POST /api/download (Phase 2.12: filenameなし)
+      // Phase 2.15: 相対パスに変更（ポートハードコード削除）
+      const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, filename: fname })
+        body: JSON.stringify({ url })  // Phase 2.12: filenameフィールド削除
       })
 
       if (!response.ok) {
@@ -54,10 +55,12 @@ export const useDownload = () => {
   useEffect(() => {
     if (!taskId) return
 
-    const wsUrl = `ws://localhost:8000/ws/download/${taskId}`
-    console.log('Connecting to WebSocket:', wsUrl)
+    // Phase 2.15: WebSocket URLを動的に構築（ポートハードコード削除）
+    const wsUrl = new URL(`/ws/download/${taskId}`, window.location.origin)
+    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+    console.log('Connecting to WebSocket:', wsUrl.toString())
 
-    const socket = new WebSocket(wsUrl)
+    const socket = new WebSocket(wsUrl.toString())
 
     socket.onopen = () => {
       console.log('WebSocket connected')
@@ -72,6 +75,11 @@ export const useDownload = () => {
         if (data.type === 'progress' && data.data) {
           setProgress(data.data.percentage)
           setStatus(data.data.status as 'downloading' | 'completed' | 'failed')
+
+          // Phase 2.12: WebSocketレスポンスからfilenameを設定
+          if (data.data.filename) {
+            setFilename(data.data.filename)
+          }
 
           if (data.data.error_message) {
             setError(data.data.error_message)

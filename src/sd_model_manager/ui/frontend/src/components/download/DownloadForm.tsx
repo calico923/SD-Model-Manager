@@ -1,26 +1,20 @@
 import { useState } from 'react'
 
 interface DownloadFormProps {
-  onSubmit: (url: string, filename: string) => void
+  onSubmit: (url: string) => void  // Phase 2.12: filename削除
   disabled?: boolean
 }
 
 export default function DownloadForm({ onSubmit, disabled = false }: DownloadFormProps) {
   const [url, setUrl] = useState('')
-  const [filename, setFilename] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | undefined>(undefined)  // Phase 2.12: null → undefined
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
+    setError(undefined)
 
     if (!url.trim()) {
       setError('URL is required')
-      return
-    }
-
-    if (!filename.trim()) {
-      setError('Filename is required')
       return
     }
 
@@ -32,9 +26,8 @@ export default function DownloadForm({ onSubmit, disabled = false }: DownloadFor
       return
     }
 
-    onSubmit(url, filename)
+    onSubmit(url)  // Phase 2.12: filenameなしで送信
     setUrl('')
-    setFilename('')
   }
 
   return (
@@ -53,22 +46,9 @@ export default function DownloadForm({ onSubmit, disabled = false }: DownloadFor
           placeholder="https://civitai.com/models/12345/model-name"
           className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
         />
-      </div>
-
-      <div>
-        <label htmlFor="filename" className="block text-sm font-medium text-gray-700 mb-1">
-          Filename
-        </label>
-        <input
-          type="text"
-          id="filename"
-          name="filename"
-          value={filename}
-          onChange={(e) => setFilename(e.target.value)}
-          disabled={disabled}
-          placeholder="model.safetensors"
-          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-        />
+        <p className="mt-1 text-sm text-gray-500">
+          Filename will be automatically extracted from model metadata
+        </p>
       </div>
 
       {error && (

@@ -79,14 +79,16 @@ async def test_get_model_metadata(civitai_client):
 @pytest.mark.asyncio
 async def test_get_download_url(civitai_client):
     """ダウンロード URL 取得のテスト"""
+    # Phase 2.16: files配列内にdownloadUrlを配置（実際のCivitai APIレスポンスに合わせて修正）
     mock_response = {
         "modelVersions": [
             {
-                "downloadUrl": "https://civitai.com/api/download/models/1",
                 "files": [
                     {
                         "name": "test-lora.safetensors",
-                        "type": "Model"
+                        "type": "Model",
+                        "primary": True,
+                        "downloadUrl": "https://civitai.com/api/download/models/1"
                     }
                 ]
             }

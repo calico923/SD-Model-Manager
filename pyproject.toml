@@ -32,6 +32,9 @@ packages = ["src/sd_model_manager"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests that call real external APIs (deselect with '-m \"not integration\"')",
+]
 
 [tool.ruff]
 line-length = 100

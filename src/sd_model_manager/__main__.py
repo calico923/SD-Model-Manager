@@ -42,7 +42,7 @@ def main():
         app,
         host=config.host,
         port=config.port,
-        reload=True,
+        reload=False,  # reload=Trueはインポート文字列が必要
         log_config=log_config
     )
 

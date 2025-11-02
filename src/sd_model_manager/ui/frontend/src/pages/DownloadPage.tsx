@@ -12,8 +12,13 @@ export default function DownloadPage() {
       <div className="grid grid-cols-1 gap-6">
         <DownloadForm onSubmit={startDownload} disabled={isDownloading} />
 
-        {(isDownloading || taskId) && (
-          <ProgressBar progress={progress} filename={filename} status={status} error={error} />
+        {(isDownloading || taskId) && status !== 'idle' && (
+          <ProgressBar
+            progress={progress}
+            filename={filename}
+            status={status as 'downloading' | 'completed' | 'failed'}
+            error={error}
+          />
         )}
       </div>
     </div>
