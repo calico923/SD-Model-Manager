@@ -1,48 +1,72 @@
-# CLAUDE.md
+# Claude Code Spec-Driven Development
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Kiro-style Spec Driven Development implementation using claude code slash commands, hooks and agents.
 
-## Project Overview
+## Project Context
 
-SD-Model-Manager is a newly initialized project. The repository is currently in its early setup phase.
+### Paths
+- Steering: `.kiro/steering/`
+- Specs: `.kiro/specs/`
+- Commands: `.claude/commands/`
 
-## Project Status
+### Steering vs Specification
 
-This is a fresh repository with:
-- Initial git commit completed
-- README.md created
-- No code structure yet established
-- No build system configured
-- No dependencies defined
+**Steering** (`.kiro/steering/`) - Guide AI with project-wide rules and context
+**Specs** (`.kiro/specs/`) - Formalize development process for individual features
 
-## Development Setup
+### Active Specifications
+- **`model-viewer`**: Web interface for viewing and managing local Stable Diffusion model collections (Phase 3)
+- Use `/kiro:spec-status [feature-name]` to check progress
 
-### When Code is Added
+## Development Guidelines
+- Think in English, generate responses in English
 
-Once the project structure is established, this section should be updated with:
-- Language/framework being used
-- Installation commands
-- Development environment setup
-- Build and test commands
+## Workflow
 
-## Git Workflow
+### Phase 0: Steering (Optional)
+`/kiro:steering` - Create/update steering documents
+`/kiro:steering-custom` - Create custom steering for specialized contexts
 
-- Main branch: No explicit main branch configured yet
-- Current branch: `main`
+Note: Optional for new features or small additions. You can proceed directly to spec-init.
 
-## Notes for Development
+### Phase 1: Specification Creation
+1. `/kiro:spec-init [detailed description]` - Initialize spec with detailed project description
+2. `/kiro:spec-requirements [feature]` - Generate requirements document
+3. `/kiro:spec-design [feature]` - Interactive: "Have you reviewed requirements.md? [y/N]"
+4. `/kiro:spec-tasks [feature]` - Interactive: Confirms both requirements and design review
 
-When adding code to this repository:
-1. Determine the project type (Python, JavaScript/TypeScript, Go, etc.) and add appropriate configuration files
-2. Add dependency management files (package.json, requirements.txt, pyproject.toml, etc.)
-3. Set up build and test infrastructure
-4. Update this CLAUDE.md with specific commands and architecture details
+### Phase 2: Progress Tracking
+`/kiro:spec-status [feature]` - Check current progress and phases
 
-## SpecStory Integration
+## Development Rules
+1. **Consider steering**: Run `/kiro:steering` before major development (optional for new features)
+2. **Follow 3-phase approval workflow**: Requirements → Design → Tasks → Implementation
+3. **Approval required**: Each phase requires human review (interactive prompt or manual)
+4. **No skipping phases**: Design requires approved requirements; Tasks require approved design
+5. **Update task status**: Mark tasks as completed when working on them
+6. **Keep steering current**: Run `/kiro:steering` after significant changes
+7. **Check spec compliance**: Use `/kiro:spec-status` to verify alignment
 
-This repository uses SpecStory for AI chat history preservation. The `.specstory/` directory contains:
-- Auto-saved markdown files of AI coding sessions
-- Project identity information (if AI rules derivation is enabled)
-- Backups of AI rules
+## Steering Configuration
 
-When searching the codebase, exclude `.specstory/*` from search results to focus on actual code files.
+### Current Steering Files
+Managed by `/kiro:steering` command. Updates here reflect command changes.
+
+### Active Steering Files
+- `product.md`: Always included - Product context and business objectives
+- `tech.md`: Always included - Technology stack and architectural decisions
+- `structure.md`: Always included - File organization and code patterns
+
+### Custom Steering Files
+<!-- Added by /kiro:steering-custom command -->
+<!-- Format:
+- `filename.md`: Mode - Pattern(s) - Description
+  Mode: Always|Conditional|Manual
+  Pattern: File patterns for Conditional mode
+-->
+
+### Inclusion Modes
+- **Always**: Loaded in every interaction (default)
+- **Conditional**: Loaded for specific file patterns (e.g., "*.test.js")
+- **Manual**: Reference with `@filename.md` syntax
+
