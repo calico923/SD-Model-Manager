@@ -32,7 +32,12 @@ dist/
 .idea/
 
 # Claude Code & Tools
-.claude/
+# Claude Code - ignore most, but keep some for backup
+.claude/commands/
+.claude/.cursor/
+.claude/.session*
+.claude/*.tmp
+# Keep scripts, agents, and settings.local.json
 .specstory/
 AGENTS.md
 
@@ -40,3 +45,4 @@ AGENTS.md
 .coverage
 .pytest_cache/
 htmlcov/
+.serena/
