@@ -15,13 +15,14 @@ Implement web-based model viewer for browsing, searching, and managing local Sta
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
   - _Completed: 2025-11-03 | Coverage: 94% | Tests: 22 passing_
 
-- [ ] 1.2 Integrate Civitai metadata extraction
+- [x] 1.2 Integrate Civitai metadata extraction
   - Read and parse `.civitai.info` JSON files adjacent to model files
   - Extract model name, version, creator, description from metadata
   - Parse trigger words and tags arrays
   - Store preview image URLs from Civitai metadata
   - Handle missing or malformed metadata files gracefully
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - _Completed: 2025-11-04 | Coverage: 94% | Tests: 4 civitai tests passing (26 total)_
 
 - [ ] 1.3 Implement preview image handling from Civitai metadata
   - Extract preview image URLs from Civitai metadata

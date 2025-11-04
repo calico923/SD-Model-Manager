@@ -215,6 +215,74 @@ class TestModelScanner:
                 assert model.preview_image_url is None
 
     @pytest.mark.asyncio
+    async def test_scan_extracts_all_civitai_metadata_fields(self, scanner, test_model_dir):
+        """Test scanner extracts all required metadata fields per Requirement 2.3"""
+        # Create a comprehensive .civitai.info file with all fields
+        lora_dir = test_model_dir / "active" / "loras"
+        metadata_file = lora_dir / "test_lora.safetensors.civitai.info"
+
+        comprehensive_metadata = {
+            "id": 12345,
+            "name": "Comprehensive Test Model",
+            "modelId": 123,
+            "modelName": "Test Model Series",
+            "modelVersionId": 456,
+            "versionName": "v2.0",
+            "creatorUsername": "test_creator",
+            "creatorName": "Test Creator",
+            "description": "Full description with all details",
+            "tags": ["anime", "character", "lora"],
+            "trainedWords": ["trigger1", "trigger2", "trigger3"],
+            "images": [
+                {"url": "https://example.com/preview1.jpg"},
+                {"url": "https://example.com/preview2.jpg"}
+            ]
+        }
+
+        import json
+        metadata_file.write_text(json.dumps(comprehensive_metadata))
+
+        # Scan and verify all fields are extracted
+        models = await scanner.scan()
+        lora_model = next(m for m in models if "test_lora" in m.filename)
+
+        # Requirement 2.3: Extract model name
+        assert lora_model.civitai_metadata.get("name") == "Comprehensive Test Model"
+
+        # Requirement 2.3: Extract model version
+        assert lora_model.civitai_metadata.get("versionName") == "v2.0"
+
+        # Requirement 2.3: Extract creator information
+        assert lora_model.civitai_metadata.get("creatorUsername") == "test_creator"
+        assert lora_model.civitai_metadata.get("creatorName") == "Test Creator"
+
+        # Requirement 2.3: Extract description
+        assert lora_model.civitai_metadata.get("description") == "Full description with all details"
+
+        # Requirement 2.3: Extract tags
+        tags = lora_model.civitai_metadata.get("tags", [])
+        assert "anime" in tags
+        assert "character" in tags
+        assert "lora" in tags
+        assert len(tags) == 3
+
+        # Requirement 2.3: Extract trigger words
+        trigger_words = lora_model.civitai_metadata.get("trainedWords", [])
+        assert "trigger1" in trigger_words
+        assert "trigger2" in trigger_words
+        assert "trigger3" in trigger_words
+        assert len(trigger_words) == 3
+
+        # Requirement 2.3: Extract preview image URLs
+        images = lora_model.civitai_metadata.get("images", [])
+        assert len(images) == 2
+        assert images[0]["url"] == "https://example.com/preview1.jpg"
+        assert images[1]["url"] == "https://example.com/preview2.jpg"
+
+        # Requirement 2.4: Verify metadata is associated with model
+        assert lora_model.preview_image_url == "https://example.com/preview1.jpg"
+
+    @pytest.mark.asyncio
     async def test_scan_handles_malformed_civitai_metadata(self, scanner, test_model_dir):
         """Test scanner handles malformed JSON in .civitai.info files"""
         # Create a malformed .civitai.info file
