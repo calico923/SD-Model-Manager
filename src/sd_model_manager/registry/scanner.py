@@ -260,3 +260,32 @@ class ModelScanner:
                 return first_image.get("url")
 
         return None
+
+
+# Requirement 3.4: Type-specific placeholder images for missing previews
+def get_placeholder_image_url(model_type: str) -> str:
+    """Get placeholder image URL for specified model type
+
+    Returns a type-specific placeholder image URL when actual preview
+    image is not available (Requirement 3.4).
+
+    Args:
+        model_type: Model type string (LoRA, Checkpoint, VAE, Embedding, Unknown)
+
+    Returns:
+        URL string pointing to placeholder SVG image for the model type
+    """
+    # Normalize model type to lowercase for case-insensitive matching
+    model_type_lower = model_type.lower()
+
+    # Map model types to placeholder image URLs
+    placeholders = {
+        "lora": "/assets/placeholder-lora.svg",
+        "checkpoint": "/assets/placeholder-checkpoint.svg",
+        "vae": "/assets/placeholder-vae.svg",
+        "embedding": "/assets/placeholder-embedding.svg",
+        "unknown": "/assets/placeholder-unknown.svg"
+    }
+
+    # Return placeholder for matched type, default to unknown
+    return placeholders.get(model_type_lower, "/assets/placeholder-unknown.svg")

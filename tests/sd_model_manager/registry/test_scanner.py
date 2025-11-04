@@ -508,3 +508,57 @@ class TestModelScanner:
         # Should find the model in the real directory
         assert len(models) == 1
         assert "test_model" in models[0].filename
+
+    def test_get_placeholder_image_for_lora_type(self):
+        """Test placeholder image URL for LoRA type (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        placeholder_url = get_placeholder_image_url("LoRA")
+
+        assert placeholder_url is not None
+        assert "/assets/placeholder-lora.svg" in placeholder_url or "lora" in placeholder_url.lower()
+
+    def test_get_placeholder_image_for_checkpoint_type(self):
+        """Test placeholder image URL for Checkpoint type (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        placeholder_url = get_placeholder_image_url("Checkpoint")
+
+        assert placeholder_url is not None
+        assert "/assets/placeholder-checkpoint.svg" in placeholder_url or "checkpoint" in placeholder_url.lower()
+
+    def test_get_placeholder_image_for_vae_type(self):
+        """Test placeholder image URL for VAE type (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        placeholder_url = get_placeholder_image_url("VAE")
+
+        assert placeholder_url is not None
+        assert "/assets/placeholder-vae.svg" in placeholder_url or "vae" in placeholder_url.lower()
+
+    def test_get_placeholder_image_for_embedding_type(self):
+        """Test placeholder image URL for Embedding type (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        placeholder_url = get_placeholder_image_url("Embedding")
+
+        assert placeholder_url is not None
+        assert "/assets/placeholder-embedding.svg" in placeholder_url or "embedding" in placeholder_url.lower()
+
+    def test_get_placeholder_image_for_unknown_type(self):
+        """Test placeholder image URL for Unknown type (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        placeholder_url = get_placeholder_image_url("Unknown")
+
+        assert placeholder_url is not None
+        assert "/assets/placeholder-unknown.svg" in placeholder_url or "unknown" in placeholder_url.lower()
+
+    def test_get_placeholder_image_case_insensitive(self):
+        """Test placeholder image URL is case-insensitive (Req 3.4)"""
+        from sd_model_manager.registry.scanner import get_placeholder_image_url
+
+        # Test various cases
+        assert get_placeholder_image_url("lora").lower() == get_placeholder_image_url("LoRA").lower()
+        assert get_placeholder_image_url("checkpoint").lower() == get_placeholder_image_url("Checkpoint").lower()
+        assert get_placeholder_image_url("vae").lower() == get_placeholder_image_url("VAE").lower()
