@@ -15,6 +15,9 @@ class Config(BaseSettings):
     download_dir: Path = Path("./downloads")
     max_concurrent_downloads: int = 1
 
+    # Model scanning settings
+    model_scan_dir: Path = Path("./models")
+
     # Server settings
     host: str = "127.0.0.1"
     port: int = 8188

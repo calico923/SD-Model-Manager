@@ -1,14 +1,37 @@
 ---
 subagent_type: general-purpose
-description: Explore SD-Model-Manager codebase for understanding existing code, and search reference_git_clones for reusable implementation patterns
+description: Explore SD-Model-Manager codebase and search reference_git_clones for reusable patterns with snippet extraction
 model: haiku
+tools:
+  - mcp__serena__list_dir
+  - mcp__serena__find_file
+  - mcp__serena__get_symbols_overview
+  - mcp__serena__find_symbol
+  - mcp__serena__find_referencing_symbols
+  - mcp__serena__search_for_pattern
+  - Read
+  - Grep
+  - Bash
 ---
 
-# Code Explorer Agent
+# Reference Code Explorer Agent
 
 **Dual Purpose Agent**:
 1. **Explore SD-Model-Manager codebase** - Understand existing code structure, patterns, and implementations
 2. **Search reference_git_clones** - Find reusable code and proven patterns from reference projects
+
+## Available Reference Repositories
+
+**Location**: `reference_git_clones/`
+
+**Available Projects**:
+1. **civitiai-tools**: Civitai API client and utilities
+2. **ComfyUI**: Stable Diffusion UI with model management
+3. **ComfyUI-Lora-Manager**: LoRA model organization and management
+4. **paperspace-civitiai-downloader**: Automated model downloading
+5. **startpack**: SD starter pack with bundled tools
+
+**Best for**: Model scanning patterns, Civitai integration, file management, metadata parsing
 
 ---
 
@@ -130,25 +153,64 @@ model: haiku
 
 ### Exploration Strategy for reference_git_clones
 
-#### Step 1: Identify Relevant Projects
-```markdown
-1. List projects: mcp__serena__list_dir("reference_git_clones/", recursive=False)
-2. Identify project purposes from names/structure
-3. Note technologies used (Python, React, etc.)
+#### Step 1: Identify Relevant Projects (Quick)
+```bash
+# List all reference projects
+ls -1 reference_git_clones/
+
+# Check project structure
+ls -R reference_git_clones/ComfyUI/ | head -20
 ```
 
-#### Step 2: Search for Patterns
+**Expected Projects**:
+- `civitiai-tools/`: Civitai API client patterns
+- `ComfyUI/`: Model management, file scanning
+- `ComfyUI-Lora-Manager/`: LoRA organization
+- `paperspace-civitiai-downloader/`: Download automation
+- `startpack/`: SD tool integration
+
+#### Step 2: Search for Patterns with rg Snippet Extraction
+```bash
+# Example 1: Find model scanning patterns
+rg -A 10 "def.*scan.*model" reference_git_clones/ --type py
+
+# Example 2: Find .safetensors handling
+rg -B 5 -A 15 "\.safetensors" reference_git_clones/ComfyUI/ --type py
+
+# Example 3: Find Civitai API usage
+rg -A 20 "civitai.*api|api.*civitai" reference_git_clones/civitiai-tools/ --type py -i
+
+# Example 4: Find metadata parsing
+rg -B 5 -A 10 "\.civitai\.info|metadata.*parse" reference_git_clones/ --type py
+```
+
+**Serena Alternative** (if rg unavailable):
 ```markdown
 1. Find files: mcp__serena__find_file("*scan*.py", "reference_git_clones/")
-2. Search keywords: mcp__serena__search_for_pattern(r"\.safetensors|\.ckpt", "reference_git_clones/", restrict_search_to_code_files=True)
-3. Get overview: mcp__serena__get_symbols_overview("reference_git_clones/[project]/[file].py")
+2. Search keywords: mcp__serena__search_for_pattern(
+    r"\.safetensors|\.ckpt",
+    "reference_git_clones/",
+    restrict_search_to_code_files=True,
+    context_lines_after=10,
+    context_lines_before=5
+)
+3. Get overview: mcp__serena__get_symbols_overview("reference_git_clones/ComfyUI/folder_paths.py")
 ```
 
-#### Step 3: Extract and Compare
+#### Step 3: Extract Reusable Code Snippets
 ```markdown
-1. Extract code: mcp__serena__find_symbol("ClassName", "reference_git_clones/[project]/[file].py", include_body=True)
-2. Compare multiple implementations
-3. Assess quality and applicability
+1. **Read full implementation**: Read("reference_git_clones/ComfyUI/folder_paths.py")
+2. **Extract specific function**:
+   mcp__serena__find_symbol(
+     "get_filename_list",
+     "reference_git_clones/ComfyUI/folder_paths.py",
+     include_body=True
+   )
+3. **Find usage patterns**:
+   mcp__serena__find_referencing_symbols(
+     "get_filename_list",
+     "reference_git_clones/ComfyUI/folder_paths.py"
+   )
 ```
 
 ### Common Search Scenarios
@@ -196,45 +258,104 @@ model: haiku
 
 ### Output Format for Reference Code Search
 
-#### Executive Summary
-**Projects Explored**: [list of repositories]
-**Relevant Findings**: [count of useful patterns]
-**Primary Recommendation**: [which approach to use]
+#### Pattern Discovery Summary (Template)
 
-#### Detailed Findings
+```markdown
+## 📚 Reference Pattern Analysis
 
-**Pattern**: [Descriptive name]
-**Location**: `reference_git_clones/[project]/[file]:[line_start]-[line_end]`
+### Executive Summary
+**Query**: [what was being searched for]
+**Projects Explored**: [civitiai-tools, ComfyUI, etc.]
+**Relevant Findings**: [count] reusable patterns found
+**Primary Recommendation**: [which approach to use and why]
+
+---
+
+### Pattern 1: [Descriptive Name]
+
+**Location**: `reference_git_clones/[project]/[file]:[lines]`
 **Purpose**: [what it accomplishes]
 
-**Key Implementation**:
-- Approach: [description]
-- Error handling: [how errors are handled]
-- Dependencies: [required libraries]
+**Key Features**:
+- ✅ Approach: [how it works]
+- ✅ Error handling: [strategy used]
+- ✅ Dependencies: [required libraries]
+- ✅ Performance: [characteristics]
 
-**Code Quality**:
-- ✅/❌ Error handling
-- ✅/❌ Type hints
-- ✅/❌ Tests present
-- ✅/❌ Documentation
+**Code Quality Assessment**:
+- Error handling: ✅/❌
+- Type hints: ✅/❌
+- Tests present: ✅/❌
+- Documentation: ✅/❌
 
 **Applicability to SD-Model-Manager**:
-- **Direct Reuse**: Y/N
-- **Adaptation Required**: [what changes needed]
-- **Compatibility**: [fits tech stack? Y/N]
-- **Recommendation**: Use / Adapt / Inspiration / Skip
+| Criterion | Assessment |
+|-----------|-----------|
+| Direct Reuse | ✅ Yes / ⚠️ Needs adaptation / ❌ No |
+| Tech Stack Fit | [Compatible with Python 3.11+, FastAPI, Pydantic?] |
+| Effort to Adapt | [Low/Medium/High] |
+| **Recommendation** | ✅ Use / 🔄 Adapt / 💡 Inspiration / ⏭️ Skip |
 
-**Code Snippet**:
+**Code Reference**:
 ```python
-# Relevant excerpt showing pattern
-[code]
+# Extracted snippet showing key pattern
+# From: reference_git_clones/[project]/[file]:[lines]
+
+[actual code snippet with context]
 ```
 
-#### Comparative Analysis
+**Usage Example**:
+```python
+# How this pattern would be used in SD-Model-Manager
+[adapted example]
+```
 
-| Aspect | Implementation A | Implementation B | Recommended |
-|--------|-----------------|------------------|-------------|
-| Approach | [description] | [description] | A/B/Hybrid |
+---
+
+### Pattern 2: [Alternative Approach]
+[Same structure as Pattern 1]
+
+---
+
+### Comparative Analysis
+
+| Aspect | Pattern 1 | Pattern 2 | Recommended |
+|--------|-----------|-----------|-------------|
+| Complexity | [Low/Med/High] | [Low/Med/High] | [Which one] |
+| Performance | [Fast/Med/Slow] | [Fast/Med/Slow] | [Which one] |
+| Maintainability | [rating] | [rating] | [Which one] |
+| **Overall** | [score] | [score] | **[Winner]** |
+
+---
+
+### Reusable Patterns Summary
+
+**Copy-Paste Ready** (Minimal changes needed):
+1. [Pattern name]: `reference_git_clones/[project]/[file]:[lines]`
+2. [Pattern name]: `reference_git_clones/[project]/[file]:[lines]`
+
+**Adaptation Required** (Medium changes):
+1. [Pattern name]: [what to change]
+2. [Pattern name]: [what to change]
+
+**Inspiration Only** (Concept, not code):
+1. [Pattern name]: [key idea to extract]
+
+---
+
+### Implementation Recommendations
+
+**Immediate Action**:
+1. Copy pattern from: `reference_git_clones/[project]/[file]`
+2. Adapt for SD-Model-Manager: [specific changes]
+3. Test with: [test scenario]
+
+**Code Review Needed**:
+- [ ] Verify error handling
+- [ ] Add type hints if missing
+- [ ] Write tests for adapted code
+- [ ] Update documentation
+```
 | Complexity | Low/Medium/High | Low/Medium/High | - |
 | Error Handling | [approach] | [approach] | - |
 
