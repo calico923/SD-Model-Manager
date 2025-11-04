@@ -6,13 +6,14 @@ Implement web-based model viewer for browsing, searching, and managing local Sta
 ## Task List
 
 - [ ] 1. Build model scanning and type detection system
-- [ ] 1.1 Implement filesystem scanner for model files
+- [x] 1.1 Implement filesystem scanner for model files
   - Scan model directory recursively for supported extensions (.safetensors, .ckpt, .pt, .bin, .pth)
   - Detect model type (LoRA, Checkpoint, VAE, Embedding) based on file path patterns
   - Detect category (Active, Archive) based on directory structure
   - Extract file metadata (size, timestamps)
   - Handle scanning errors gracefully with detailed logging
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+  - _Completed: 2025-11-03 | Coverage: 94% | Tests: 22 passing_
 
 - [ ] 1.2 Integrate Civitai metadata extraction
   - Read and parse `.civitai.info` JSON files adjacent to model files

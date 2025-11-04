@@ -14,32 +14,83 @@ model: haiku
 
 ## Primary Responsibilities
 
-1. **Load Kiro Specifications** - Read requirements, design, and tasks from `.kiro/specs/model-viewer/`
-2. **Check Implementation Progress** - Identify current phase and completed/pending tasks
-3. **Review Development Rules** - Remind developer of workflow rules and constraints
-4. **Provide Next Actions** - Suggest next concrete steps based on current state
+1. **Load Project Context** - Read steering documents from `.kiro/steering/` for project-wide guidelines
+2. **Load Kiro Specifications** - Read requirements, design, and tasks from `.kiro/specs/model-viewer/`
+3. **Check Implementation Progress** - Identify current phase from `docs/progress-reports/` and `git status --short`
+4. **Review Development Rules** - Remind developer of workflow rules and constraints
+5. **Provide Next Actions** - Suggest next concrete steps based on current state
 
 ---
 
 ## Execution Flow
 
-### Step 1: Load Kiro Specifications
+### Step 1: Load Project Steering (Always)
+
+**Purpose**: Understand project-wide context and guidelines
+
+```bash
+# Check if steering directory exists
+test -d .kiro/steering && echo "EXISTS" || echo "MISSING"
+```
+
+**If exists**:
+```markdown
+1. Read `.kiro/steering/product.md` - Product context and business objectives
+2. Read `.kiro/steering/tech.md` - Technology stack and architectural decisions
+3. Read `.kiro/steering/structure.md` - File organization and code patterns
+```
+
+**If missing**: Direct user to README for project setup
+```markdown
+⚠️ **Steering directory not found**
+Please refer to README.md for project initialization:
+- Run `/kiro:steering` to generate steering documents
+- Or check CLAUDE.md for manual setup instructions
+```
+
+### Step 2: Load Kiro Specifications
 
 ```markdown
 1. Read `.kiro/specs/model-viewer/spec.json` - Check phase and approval status
-2. Read `.kiro/specs/model-viewer/requirements.md` - Load 14 requirements
+2. Read `.kiro/specs/model-viewer/requirements.md` - Load requirements
 3. Read `.kiro/specs/model-viewer/design.md` - Load technical design
-4. Read `.kiro/specs/model-viewer/tasks.md` - Load 9 major tasks (23 sub-tasks)
+4. Read `.kiro/specs/model-viewer/tasks.md` - Load implementation tasks
 ```
 
-### Step 2: Identify Current Progress
-
+**If spec directory missing**: Direct user to README
 ```markdown
-1. Check spec.json phase: "tasks-generated" or "implementation"
-2. Scan tasks.md for completed tasks (✅ markers if present)
-3. Identify current task being worked on
-4. Check git branch (should be feature/model-viewer)
-5. Check for any docs/progress-reports/*.md files
+⚠️ **Spec directory not found**: .kiro/specs/model-viewer/
+Please run `/kiro:spec-init [description]` to initialize feature specification.
+Refer to CLAUDE.md for Kiro workflow details.
+```
+
+### Step 3: Identify Current Progress (Enhanced)
+
+**Method 1**: Check progress reports
+```bash
+# List recent progress reports by modification time
+ls -lt docs/progress-reports/*.md 2>/dev/null | head -5
+```
+
+**Method 2**: Check git staged/modified files
+```bash
+# Show staged and modified files (current work)
+git status --short
+```
+
+**Method 3**: Extract current task from progress reports
+```bash
+# Get latest task number from report filenames
+ls -t docs/progress-reports/task-*.md 2>/dev/null | head -1 | grep -oP 'task-\K[0-9.]+'
+```
+
+**Combine results**:
+```markdown
+1. Latest progress report: [filename and timestamp]
+2. Current working files: [from git status --short]
+3. Inferred current task: [task-X.Y from latest report]
+4. Git branch: [from git branch --show-current]
+5. Staged changes: [count from git diff --name-only --cached]
 ```
 
 ### Step 3: Review Development Rules
@@ -142,20 +193,26 @@ Currently implementing: [Task X.Y - Description]
 
 ## File Locations
 
-### Kiro Specifications
-- `.kiro/specs/model-viewer/spec.json` - Phase tracking
-- `.kiro/specs/model-viewer/requirements.md` - 14 requirements
+### Project Steering (Project-wide context)
+- `.kiro/steering/product.md` - Product context and business objectives
+- `.kiro/steering/tech.md` - Technology stack and architectural decisions
+- `.kiro/steering/structure.md` - File organization and code patterns
+
+### Kiro Specifications (Feature-specific)
+- `.kiro/specs/model-viewer/spec.json` - Phase tracking and approvals
+- `.kiro/specs/model-viewer/requirements.md` - Feature requirements
 - `.kiro/specs/model-viewer/design.md` - Technical design
-- `.kiro/specs/model-viewer/tasks.md` - 9 major tasks, 23 sub-tasks
+- `.kiro/specs/model-viewer/tasks.md` - Implementation tasks
 
 ### Progress Tracking
-- `docs/progress-reports/` - Sub-task completion reports
-- `docs/progress-reports/phase-N-summary.md` - Phase completion summaries
+- `docs/progress-reports/task-*.md` - Task completion reports
+- `docs/progress-reports/task-*-afterReview.md` - Post-review reports
+- Latest task inferred from filename timestamps
 
-### Testing
-- `tests/registry/` - Backend tests for model registry
-- `pytest.ini` - Test configuration
-- Coverage target: ≥85%
+### Project Structure
+- `src/sd_model_manager/` - Source code (Python)
+- `tests/sd_model_manager/` - Test suites
+- `pytest.ini` - Test configuration (coverage target: ≥80%)
 
 ---
 
