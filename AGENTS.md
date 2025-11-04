@@ -21,3 +21,6 @@ Use concise, imperative present-tense commit messages; the initial `first commit
 
 ## Security & Configuration Tips
 Never commit API keys or proprietary checkpoints; reference them through `.env` entries documented in `docs/configuration.md`. Validate any download scripts against checksums and sign releases when distributing bundled models. Review dependencies for licenses compatible with model redistribution before adding them to `requirements-dev.txt`.
+
+## Agent Interaction Rules
+- During code review requests, do not apply repository changes unless the user explicitly asks for modifications.

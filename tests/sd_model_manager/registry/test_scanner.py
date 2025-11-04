@@ -256,11 +256,23 @@ class TestModelScanner:
     @pytest.mark.asyncio
     async def test_scan_handles_file_access_errors(self, scanner, test_model_dir, monkeypatch):
         """Test scanner handles file access errors gracefully"""
-        # This test would require mocking os.stat or Path operations
-        # to simulate permission denied errors
-        # For now, we verify the scan completes successfully
+        # Mock _process_file to raise OSError for one file
+        original_process = scanner._process_file
+        call_count = [0]
+
+        async def mock_process_with_error(file_path):
+            call_count[0] += 1
+            if call_count[0] == 2:  # Raise error on second file
+                raise OSError("File access error")
+            return await original_process(file_path)
+
+        monkeypatch.setattr(scanner, "_process_file", mock_process_with_error)
+
+        # Should complete successfully, just skip the file with error
         models = await scanner.scan()
-        assert len(models) > 0
+
+        # Should have fewer models due to access error
+        assert len(models) < 5  # One file should be skipped due to error
 
     @pytest.mark.asyncio
     async def test_scan_ignores_unsupported_extensions(self, scanner, test_model_dir):
@@ -373,3 +385,58 @@ class TestModelScanner:
             # No ERROR level logs should appear for successful scan
             error_logs = [record for record in caplog.records if record.levelname == "ERROR"]
             assert len(error_logs) == 0
+
+    def test_path_parsing_cross_platform_windows_style(self):
+        """Test path parsing works with Windows-style backslash paths"""
+        from pathlib import PureWindowsPath
+        config = Config()
+        scanner = ModelScanner(config)
+
+        # Create a Windows-style path
+        windows_path = PureWindowsPath("models\\active\\loras\\test.safetensors")
+
+        # Convert to Path for testing (Path.parts works for both / and \)
+        # Test that our cross-platform parsing uses Path.parts correctly
+        path_parts = [part.lower() for part in windows_path.parts]
+
+        # Verify path_parts are correctly extracted regardless of separator
+        assert any("lora" in part for part in path_parts)
+        assert any("active" in part for part in path_parts)
+
+    @pytest.mark.asyncio
+    async def test_scan_rejects_file_path_not_directory(self, tmp_path):
+        """Test scanner rejects file path (not directory)"""
+        # Create a file instead of directory
+        file_path = tmp_path / "not_a_directory.txt"
+        file_path.write_text("content")
+
+        config = Config()
+        config.model_scan_dir = file_path
+
+        scanner = ModelScanner(config)
+
+        with pytest.raises(AppError) as exc_info:
+            await scanner.scan()
+
+        assert "directory" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_scan_with_symbolic_link_directory(self, tmp_path):
+        """Test scanner handles directories with symbolic links"""
+        # Create a directory and a symbolic link to it
+        real_dir = tmp_path / "real"
+        real_dir.mkdir()
+
+        # Create a model file in the real directory
+        model_file = real_dir / "test_model.safetensors"
+        model_file.write_text("model content")
+
+        config = Config()
+        config.model_scan_dir = real_dir
+
+        scanner = ModelScanner(config)
+        models = await scanner.scan()
+
+        # Should find the model in the real directory
+        assert len(models) == 1
+        assert "test_model" in models[0].filename

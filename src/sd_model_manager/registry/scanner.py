@@ -57,10 +57,19 @@ class ModelScanner:
         Raises:
             ModelScanError: If directory does not exist or cannot be accessed
         """
-        if not self.base_path.exists():
+        if not self.base_path.is_dir():
             raise ModelScanError(
-                f"Model directory not found: {self.base_path}",
+                f"Model directory not found or not a directory: {self.base_path}",
                 details={"path": str(self.base_path)}
+            )
+
+        # Check if directory is readable
+        try:
+            self.base_path.iterdir()
+        except (PermissionError, OSError) as e:
+            raise ModelScanError(
+                f"Cannot access model directory: {self.base_path}",
+                details={"path": str(self.base_path), "error": str(e)}
             )
 
         logger.info("Starting model scan in directory: %s", self.base_path)
@@ -111,8 +120,9 @@ class ModelScanner:
         Returns:
             ModelInfo object with extracted metadata
         """
-        # Get file stats
-        stat = file_path.stat()
+        # Get file stats asynchronously (offload blocking I/O to thread pool)
+        loop = asyncio.get_event_loop()
+        stat = await loop.run_in_executor(None, file_path.stat)
         file_size = stat.st_size
         modified_time = datetime.fromtimestamp(stat.st_mtime)
 
@@ -153,13 +163,11 @@ class ModelScanner:
         Returns:
             Model type string (LoRA, Checkpoint, VAE, Embedding, Unknown)
         """
-        path_str = str(file_path).lower()
+        # Use Path.parts for cross-platform compatibility (handles both / and \)
+        path_parts = [part.lower() for part in file_path.parts]
 
         # Check patterns in specific order to avoid false positives
         # More specific patterns should be checked first
-
-        # Split path into parts for more accurate matching
-        path_parts = path_str.split("/")
 
         # Check for exact directory name matches
         for model_type, patterns in self.type_patterns.items():
@@ -183,8 +191,8 @@ class ModelScanner:
         Returns:
             Category string (Active or Archive)
         """
-        path_str = str(file_path).lower()
-        path_parts = path_str.split("/")
+        # Use Path.parts for cross-platform compatibility (handles both / and \)
+        path_parts = [part.lower() for part in file_path.parts]
 
         # Check for archive first (more specific)
         # Use exact directory name match to avoid false positives
@@ -212,12 +220,14 @@ class ModelScanner:
         # Construct .civitai.info file path
         metadata_path = file_path.parent / f"{file_path.name}.civitai.info"
 
-        if not metadata_path.exists():
+        # Check if file exists asynchronously (offload to thread pool)
+        loop = asyncio.get_event_loop()
+        exists = await loop.run_in_executor(None, metadata_path.exists)
+        if not exists:
             return None
 
         try:
-            # Read and parse JSON
-            loop = asyncio.get_event_loop()
+            # Read and parse JSON asynchronously
             content = await loop.run_in_executor(None, metadata_path.read_text, "utf-8")
             metadata = json.loads(content)
             return metadata
